@@ -1,0 +1,7 @@
+%dw 2.0
+
+type auto_1dda4157_999f_4adf_9d88_b9e6f7ea075c_Input_Payload = {|
+  over40: String, 
+  under40: String
+|}
+

@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="39cd626d-578d-48c1-9989-62d383b50cdc" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="950ee450-4668-4564-b880-e7f97f39549f" >
+		<file:connection workingDir="C:\Users\ARAVINTHAN\OneDrive\Desktop\Mule_Projects\DataTransformation_API"/>
+	</file:config>
+	<file:config name="File_Config1" doc:name="File Config" doc:id="947d2f4c-dab8-4656-a6b7-07eb99a4df32" />
+	<file:config name="File_Config2" doc:name="File Config" doc:id="839838d8-aff2-4dae-8f98-1380679d86f6" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="a025ec2a-861c-496b-b948-5e209e64eb16" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Aravind@123" database="IndianRecords" />
+	</db:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="9d278651-e32f-484f-8ee8-17cf3b11d009" >
+		<salesforce:basic-connection username="apex@cct.cloudhub" password="Murugan@123" securityToken="kemtXRRe0ZslrQJKlsMiRt0oj" />
+	</salesforce:sfdc-config>
+	<flow name="csvWrite&amp;DatabaseUpdate" doc:id="2bda6e0c-41b2-41ff-9579-17c724cd4b8d" >
+		<http:listener doc:name="Listener" doc:id="78b40aa0-79bf-4c0e-8ed6-0fe0447610e3" config-ref="HTTP_Listener_config" path="/file"/>
+		<file:read doc:name="Read" doc:id="566226a5-548b-4631-a71a-85bfbb47b530" config-ref="File_Config1" path='C:\Users\ARAVINTHAN\Downloads\indian_data.csv'/>
+		<ee:transform doc:name="Transform Message" doc:id="d9f6c7ae-df4d-4b3a-afe6-284044caa85c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="67addcac-3ef9-4f27-b92c-aa58e0a97eca" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+var records = payload
+---
+{
+	over40: records filter ((item) -> (item.Age as Number) >= 40),
+    under40: records filter ((item) -> (item.Age as Number) < 40)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="f9d8b0c3-bb47-4734-b30f-6f59e02627c0" >
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="a8093ddf-d5a5-4b5f-84eb-64a797f4038c">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=true, quoteValues=true
+---
+payload.over40]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<file:write doc:name="Write" doc:id="62ec59d8-5b72-4e5a-ac56-116245107cfa" config-ref="File_Config" path="C:\Users\ARAVINTHAN\OneDrive\Desktop\Mule_Projects\DataTransformation_API\ageAbove40\ageAbove40.csv" />
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="2c74eee5-51b5-49a8-9dde-168a584079de">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=true, quoteValues=true
+---
+payload.under40]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<file:write doc:name="Write" doc:id="c0978758-1a62-4064-8fa3-a9b04bf564eb" config-ref="File_Config" path="C:\Users\ARAVINTHAN\OneDrive\Desktop\Mule_Projects\DataTransformation_API\ageBelow40\ageBelow40.csv" />
+			</route>
+			<route >
+				<ee:transform doc:name="Transform Message" doc:id="9c8ce79a-48c5-4d31-a487-89f8d7430c33" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.over40]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="d1b90aef-f90a-4db8-a99a-585f8bffcec2" message="#[payload]"/>
+				<scatter-gather doc:name="Scatter-Gather" doc:id="34c3b7df-3cf1-4134-acc5-c078a87239cb" >
+					<route >
+						<ee:transform doc:name="Filtering Chennai Records" doc:id="ed8c7551-0c01-4b94-84ab-4509d0bd5d10" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "CHENNAI")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Check Chennai Data" doc:id="188f7aef-0c45-4663-bc45-b254bac41e7f" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="e7c14d22-d32b-49e8-a6e5-d9b769ac5010" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Chennai Records" doc:id="7d98f399-ec5b-431b-875b-30e56b7e7f81" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into chennaiRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Bangalore Records" doc:id="9286ae4d-d804-444f-89c4-3ed1fd7e9927" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "BANGALORE")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Check Bangalore Data" doc:id="6b9391d6-e029-4408-9844-4d01001ff019" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="c6de949a-184b-4a2c-8f18-88f31e5c295e" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Bangalore Records" doc:id="f0c53464-111f-4609-ba54-3241309b2a84" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into bangaloreRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Mumbai Records" doc:id="13e0177d-22f0-4826-af98-50903489e716" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "MUMBAI")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Check Mumbai Data" doc:id="553fad80-01a4-4ef1-9051-76027fa322a2" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="f608cd12-2e8b-4334-ada8-dfcf900bcb3a" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Mumbai Records" doc:id="cbad2ed4-f45b-4316-b5d1-76807a4e6dac" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into mumbaiRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Kolkata Reords" doc:id="37c12001-d039-492d-8b5f-f1b15c03bc63" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "KOLKATA")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Check Kolkata Data" doc:id="968e43a4-b321-41d8-8797-4f3902a32d78" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="8a4aae13-caf5-4453-ae00-5187c0392fcf" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Kolkata Records" doc:id="e24d2e98-a483-497c-a25f-44efe6a609cc" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into kolkataRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Hyderabad Records" doc:id="6b043bff-6871-4eb5-8e2f-8a9206bc68dc" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "HYDERABAD")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Checks Hyderabad Data" doc:id="27577164-10da-498f-8cc5-9a9310e55be7" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="d0ba9661-4c6d-463c-8f5d-05f050bf2549" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Hyderabad Records" doc:id="f6fdf3ec-6ef9-4184-805c-aefc81f80f17" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into hyderabadRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Pune Records" doc:id="4a38fa44-c773-4539-8f89-cfa4d6e5c5f3" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "PUNE")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Checks Pune Records" doc:id="a495cd68-033d-4e28-b082-0ba171a72b11" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata to Mapping" doc:id="ad539b31-1f55-4b8a-b3f5-376b6642eafa" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Pune Records" doc:id="83d0be8e-33b7-4c88-8949-e4f94a05e17e" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into puneRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering  Delhi Records" doc:id="126e15a5-7b58-4570-acbf-3eeac0645b5d" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "DELHI")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Checks Delhi Data" doc:id="816f5d86-e8f5-40bd-8655-bc84821ee8bb" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata for Mapping" doc:id="99b4a3b2-f996-4431-850c-cdde358cc34b" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Delhi Records" doc:id="dae4d4f1-5f1d-4b08-a713-f140350415d9" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into delhiRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+					<route >
+						<ee:transform doc:name="Filtering Ahmedabad records" doc:id="e054d1de-2b27-48f2-ad17-e2ffb07abd62" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload filter ((record) -> upper(record.Address) contains "AHMEDABAD")]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Checks Ahmedabad Data" doc:id="17414ad7-35ba-47e4-88fc-1bfdb2d8e97a" message="#[payload]"/>
+						<ee:transform doc:name="Adding Metadata for Mapping" doc:id="80d806fb-1b8a-41de-9844-4606e43b36dd" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Occupation: payload01.Occupation,
+	Address: payload01.Address,
+	Phone_Number: payload01."Phone Number",
+	Age: payload01.Age,
+	Name: payload01.Name
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<db:bulk-insert doc:name="Inserting Ahmedabad Records" doc:id="a0ebe2a4-3817-4beb-8e0d-fcd2276a6e1b" config-ref="Database_Config">
+							<db:sql ><![CDATA[Insert into ahmedabadRecords (Name, Occupation, Age, Address, Phone_Number) values (:Name, :Occupation, :Age, :Address, :Phone_Number)]]></db:sql>
+						</db:bulk-insert>
+					</route>
+				</scatter-gather>
+			</route>
+			<route >
+				<flow-ref doc:name="SalesforceUnder40AgeUpsert" doc:id="78a00a1b-ee3b-4898-b8d8-67842194e6e0" name="under40SalesforceUpsert"/>
+			</route>
+		
+</scatter-gather>
+		<set-payload value="File Created Successfully Based on Age" doc:name="Set Payload" doc:id="4a8519f3-c4d4-462b-8d4a-f016470f7590" />
+	</flow>
+	<flow name="under40SalesforceUpsert" doc:id="1dda4157-999f-4adf-9d88-b9e6f7ea075c" >
+		<ee:transform doc:name="Transform Message" doc:id="efbebc5c-aea9-4181-a411-e458bf3a09e7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.under40]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Type of Payload" doc:id="8290e2b7-a412-4576-9c1a-873916c1f989" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="eee78564-d463-4e67-895f-a918a1b9cf57" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Customer_Name__c: payload01.Name,
+	Occupation__c: payload01.Occupation,
+	Age__c: payload01.Age as Number,
+	Address__c: payload01.Address,
+	Phone_Number__c: payload01."Phone Number" as Number
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="afc562c6-4448-4242-b747-cf1bbedd08c7" batchSize="200">
+			<salesforce:upsert objectType="fileTransformation__c" externalIdFieldName="Phone_Number__c" doc:name="Upsert" doc:id="0a5f45ff-3e25-43d2-a71d-a843c12d9ed6" config-ref="Salesforce_Config" />
+		</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="a9254a47-4458-409a-bdef-82501ac302b4" message="#[payload]"/>
+	</flow>
+
+</mule>
